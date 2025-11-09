@@ -1,0 +1,6 @@
+@leadtools_HostAddress = http://localhost:5153
+
+GET {{leadtools_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
