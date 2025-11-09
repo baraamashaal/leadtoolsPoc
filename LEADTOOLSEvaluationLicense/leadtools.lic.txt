@@ -1,0 +1,28 @@
+[Info]
+Description = License file for LEADTOOLS SDK
+Javascript License
+Evaluation License
+
+[Expiration]
+Expiry Date = 1/6/2026
+
+[Customer]
+Company = oc
+Application = EvalApp
+LEADContact = Unknown
+UserContact = baraamashaal@gmail.com
+
+[Product]
+Version = 23.0
+PurchaseDate = 11/6/2025
+Product1 = EVAL230
+
+[Unlocks]
+Basic
+App Store
+
+[Domain Locks]
+Lock = (default)
+
+[JSLicense]
+License = {"ver":"3.0","code":"22253NfeG/hyTt6dTc39Ufln+ZnWl8x1kwo9B4yma4g/XE2OyhzOdQYJlOxj++WfuKRMXgh/0LfIqq6UIDIluq2TpUcKJwLoUY9/xBxtqGi3v9yWFRrmhzE8tFeNJW4jbZkHuThpSYHm20L3aTv9SSTm2VonjTJ4D+XJg7yrkkVAFtdaAsZpG/joWERAU1mTfqAyyEnqLIe4/8EzD0Cy8Qg1FD55JwVw4C1nMh+FnhFAyfxaT8/CZfX46j4gkPhLfsG0ooD+xpqpJugouKTBnaxzZt4iYKgSTsuJkC8TiCUdPKHyyafeqUS0vxQhcnod/ftoOGmmUJBmK5CY+nptwnj+J98Z7Pfjsr8iZiG6T4UNKVw5p8RTDZOs5tj8J5FBzvEcwC1x0TXR76DlUirdvg7YG0bf4vU0a1ic3EgzBlcJd0oGk1PeNg03Kj7SWV402nStdtUuq6C6z+fGbp43ogwAwcC4yz+Eio0++D5zdTldViKaOAb/DEYkqHogsRXiKEe3EY33Y9NMCKeLRfPjr6htNkguqatWaXKnLNMFBqfC7xHuO3iY7vjNYXf3dx6FetkTFHs1YlbEnxDp+zttq5oq/D6oCsw4cUA4fMebHp2ng5W2otkmN2pLthG8kHIVKxUWp8JisxfU2OZi5YGyajaUdMgNzJStCEKAMkU3Tsai1OW3r4xtfHGvWbuANCsKtFznASxtcbzvzRuiyPXNFPNMwohlflsydaqhBcjnQfn2wEY56fW8VJBa8sSNlN67S2nOx7T4j/JubhAbYoEV18ks7CecKX8RG0HHaZbrbVQmlJ0ofvDgKfObZCh1rk8inj27FQC7q+/gcuOVllClzmLhsIwftw1sxATuPbn9dxglZb9qNOHl64MtjgXayGvvLfscDt4gAXXQQJnALDwpvaBsGABXmEqnSuCoUWuaiyCNRwu2wfRJ/peHDIiQLPUMnK+4K+jQG3YY3cmI9DsritOloLgHOC6NXOeU3g3KUZdN4g=="}

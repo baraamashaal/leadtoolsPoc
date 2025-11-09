@@ -1,4 +1,9 @@
+using leadtools.Services;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Initialize LEADTOOLS license
+LeadToolsLicenseHelper.SetLicense();
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -6,6 +11,17 @@ builder.Services.AddControllers();
 // Add Swagger services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Configure CORS for frontend integration
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "http://localhost:5173") // React/Vite default ports
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 var app = builder.Build();
 
@@ -17,6 +33,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Enable CORS
+app.UseCors("AllowFrontend");
 
 app.UseAuthorization();
 
