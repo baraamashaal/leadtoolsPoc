@@ -62,7 +62,7 @@ The API will be available at `http://localhost:5000`
    npm run dev
    ```
 
-The frontend will be available at `http://localhost:3000`
+The frontend will be available at `http://localhost:3000` (Vite typically uses port 5173)
 
 ## Development
 
@@ -115,7 +115,9 @@ The optimized frontend files will be in `frontend/dist/`.
 - React 18
 - TypeScript
 - Vite (with SWC for fast compilation)
-- React Router (if needed)
+- Tailwind CSS (utility-first CSS framework)
+- Lucide React (modern icon library)
+- Custom shadcn-inspired components
 
 ## License
 
