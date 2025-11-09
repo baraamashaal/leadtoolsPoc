@@ -2,6 +2,34 @@
 
 A proof-of-concept application demonstrating LEADTOOLS SDK integration with a .NET backend and React frontend.
 
+## 🔄 Resuming Development on Another PC
+
+If you're cloning this project on a different PC and want to continue the Claude Code conversation:
+
+1. **Clone the repository:**
+   ```bash
+   git clone <your-repo-url>
+   cd LeadToolsPOC
+   ```
+
+2. **Open Claude Code** in the project directory:
+   ```bash
+   claude-code
+   ```
+
+3. **Resume the conversation** by telling Claude:
+   ```
+   "I'm continuing development of the LEADTOOLS POC project.
+   The project has a .NET backend (port 5153) and React frontend (PrimeReact UI).
+   Please help me continue from where we left off."
+   ```
+
+4. **Context for Claude:**
+   - Backend API is at `http://localhost:5153/api/`
+   - Frontend uses PrimeReact components (not Tailwind)
+   - Two main endpoints: `/api/ImageCompression/compress` and `/api/ImageCompression/analyze`
+   - Project structure: separate `backend/` and `frontend/` folders
+
 ## Project Structure
 
 ```
@@ -43,7 +71,7 @@ LeadToolsPOC/
    dotnet run
    ```
 
-The API will be available at `http://localhost:5000`
+The API will be available at `http://localhost:5153` (or the port shown in the console)
 
 ### Frontend Setup
 
@@ -84,7 +112,7 @@ npm run dev
 
 ### API Proxy
 
-The frontend is configured to proxy API requests to the backend during development. Any request to `/api/*` from the frontend will be forwarded to `http://localhost:5000/api/*`.
+The frontend is configured to proxy API requests to the backend during development. Any request to `/api/*` from the frontend will be forwarded to `http://localhost:5153/api/*`.
 
 This is configured in `frontend/vite.config.ts`.
 
@@ -115,9 +143,8 @@ The optimized frontend files will be in `frontend/dist/`.
 - React 18
 - TypeScript
 - Vite (with SWC for fast compilation)
-- Tailwind CSS (utility-first CSS framework)
-- Lucide React (modern icon library)
-- Custom shadcn-inspired components
+- PrimeReact (professional UI component library)
+- PrimeIcons (icon library)
 
 ## License
 
