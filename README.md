@@ -17,11 +17,9 @@ If you're cloning this project on a different PC and want to continue the Claude
    claude-code
    ```
 
-3. **Resume the conversation** by telling Claude:
+3. **Resume the conversation** by copying and pasting this to Claude:
    ```
-   "I'm continuing development of the LEADTOOLS POC project.
-   The project has a .NET backend (port 5153) and React frontend (PrimeReact UI).
-   Please help me continue from where we left off."
+   I'm continuing development of the LEADTOOLS POC project. The project has a .NET backend (port 5153) and React frontend (PrimeReact UI). Please help me continue from where we left off.
    ```
 
 4. **Context for Claude:**
@@ -146,6 +144,34 @@ The optimized frontend files will be in `frontend/dist/`.
 - PrimeReact (professional UI component library)
 - PrimeIcons (icon library)
 
+## 📋 Future Enhancements (TODO)
+
+### High Priority
+1. **Add Compression Ratio to API Response**
+   - Backend: Return compression percentage/ratio in the compress endpoint response
+   - Frontend: Display the compression ratio in the UI (e.g., "Reduced by 65%")
+
+2. **Improve Compression Flow (No Auto-Download)**
+   - Backend: Return compressed image data instead of forcing download
+   - Frontend: Show preview of compressed image first
+   - Run analytics on BOTH original and compressed images
+   - Show side-by-side comparison of analytics (before vs after)
+   - Add manual "Download" button only after user reviews the comparison
+   - Let user decide if they want to download based on the results
+
+### Implementation Notes
+- Current behavior: API forces direct download via `Content-Disposition` header
+- Desired behavior: API returns image blob, frontend handles preview and optional download
+- Analytics comparison should show: file size reduction, quality metrics, dimensions, etc.
+
 ## License
 
 LEADTOOLS Evaluation License - See `backend/LEADTOOLSEvaluationLicense/` for details.
+
+## 💡 Important Notes
+
+- **Backend Port:** The .NET API runs on `http://localhost:5153` (may vary, check console output)
+- **Frontend Port:** Vite dev server runs on `http://localhost:3000` or `5173`
+- **UI Library:** Using PrimeReact (NOT Tailwind CSS)
+- **API Proxy:** Frontend proxies `/api/*` requests to backend automatically
+- **LEADTOOLS License:** Evaluation license located in `backend/LEADTOOLSEvaluationLicense/`
