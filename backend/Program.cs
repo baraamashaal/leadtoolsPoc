@@ -9,6 +9,7 @@ LeadToolsLicenseHelper.SetLicense();
 builder.Services.AddControllers();
 
 // Register application services
+builder.Services.AddScoped<IFileValidationService, FileValidationService>();
 builder.Services.AddScoped<IImageFormatService, ImageFormatService>();
 builder.Services.AddScoped<IImageCompressionService, ImageCompressionService>();
 builder.Services.AddScoped<IPdfCompressionService, PdfCompressionService>();

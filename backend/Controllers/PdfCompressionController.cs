@@ -9,13 +9,16 @@ namespace leadtools.Controllers;
 public class PdfCompressionController : ControllerBase
 {
     private readonly IPdfCompressionService _pdfCompressionService;
+    private readonly IFileValidationService _validationService;
     private readonly ILogger<PdfCompressionController> _logger;
 
     public PdfCompressionController(
         IPdfCompressionService pdfCompressionService,
+        IFileValidationService validationService,
         ILogger<PdfCompressionController> logger)
     {
         _pdfCompressionService = pdfCompressionService;
+        _validationService = validationService;
         _logger = logger;
     }
 
@@ -28,15 +31,11 @@ public class PdfCompressionController : ControllerBase
     [HttpPost("compress")]
     public async Task<IActionResult> CompressPdf(IFormFile file, [FromForm] string qualityMode = "Balanced")
     {
-        if (file == null || file.Length == 0)
+        // Validate file
+        var (isValid, errorMessage) = _validationService.ValidatePdfFile(file);
+        if (!isValid)
         {
-            return BadRequest("No file uploaded");
-        }
-
-        // Validate file is a PDF
-        if (!file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest("Only PDF files are supported");
+            return BadRequest(errorMessage);
         }
 
         // Parse quality mode
@@ -76,15 +75,11 @@ public class PdfCompressionController : ControllerBase
     [HttpPost("analyze")]
     public async Task<IActionResult> AnalyzePdf(IFormFile file)
     {
-        if (file == null || file.Length == 0)
+        // Validate file
+        var (isValid, errorMessage) = _validationService.ValidatePdfFile(file);
+        if (!isValid)
         {
-            return BadRequest("No file uploaded");
-        }
-
-        // Validate file is a PDF
-        if (!file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest("Only PDF files are supported");
+            return BadRequest(errorMessage);
         }
 
         try

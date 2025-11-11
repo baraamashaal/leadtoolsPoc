@@ -8,13 +8,16 @@ namespace leadtools.Controllers;
 public class ImageCompressionController : ControllerBase
 {
     private readonly IImageCompressionService _compressionService;
+    private readonly IFileValidationService _validationService;
     private readonly ILogger<ImageCompressionController> _logger;
 
     public ImageCompressionController(
         IImageCompressionService compressionService,
+        IFileValidationService validationService,
         ILogger<ImageCompressionController> logger)
     {
         _compressionService = compressionService;
+        _validationService = validationService;
         _logger = logger;
     }
 
@@ -27,9 +30,11 @@ public class ImageCompressionController : ControllerBase
     [HttpPost("compress")]
     public async Task<IActionResult> CompressImage(IFormFile file, [FromForm] int quality = 75)
     {
-        if (file == null || file.Length == 0)
+        // Validate file
+        var (isValid, errorMessage) = _validationService.ValidateImageFile(file);
+        if (!isValid)
         {
-            return BadRequest("No file uploaded");
+            return BadRequest(errorMessage);
         }
 
         // Validate quality parameter
@@ -66,9 +71,11 @@ public class ImageCompressionController : ControllerBase
     [HttpPost("analyze")]
     public async Task<IActionResult> AnalyzeImage(IFormFile file)
     {
-        if (file == null || file.Length == 0)
+        // Validate file
+        var (isValid, errorMessage) = _validationService.ValidateImageFile(file);
+        if (!isValid)
         {
-            return BadRequest("No file uploaded");
+            return BadRequest(errorMessage);
         }
 
         try

@@ -1,57 +1,20 @@
-const API_BASE_URL = '/api';
+import { API_CONFIG } from '../constants/config';
+import {
+  ImageAnalysis,
+  CompressionResult,
+  PdfAnalysis,
+  PdfCompressionResult,
+  QualityMode,
+} from '../types';
 
-export interface ImageAnalysis {
-  fileName: string;
-  originalSize: number;
-  width: number;
-  height: number;
-  bitsPerPixel: number;
-  format: string;
-  compressionType: string;
-}
-
-export interface CompressionResult {
-  fileName: string;
-  originalSize: number;
-  compressedSize: number;
-  compressionRatio: number;
-  quality: number;
-  format: string;
-  imageData: string;
-}
-
-export interface PdfAnalysis {
-  fileName: string;
-  fileSize: number;
-  pageCount: number;
-  version: string;
-  isLinearized: boolean;
-  isEncrypted: boolean;
-  pages: Array<{
-    pageNumber: number;
-    width: number;
-    height: number;
-    imageCount: number;
-  }>;
-}
-
-export interface PdfCompressionResult {
-  fileName: string;
-  originalSize: number;
-  compressedSize: number;
-  compressionRatio: number;
-  qualityMode: string;
-  pageCount: number;
-  usedMrcSegmentation: boolean;
-  pdfData: string;
-}
+const { BASE_URL } = API_CONFIG;
 
 export const imageApi = {
   async analyzeImage(file: File): Promise<ImageAnalysis> {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${API_BASE_URL}/ImageCompression/analyze`, {
+    const response = await fetch(`${BASE_URL}/ImageCompression/analyze`, {
       method: 'POST',
       body: formData,
     });
@@ -68,7 +31,7 @@ export const imageApi = {
     formData.append('file', file);
     formData.append('quality', quality.toString());
 
-    const response = await fetch(`${API_BASE_URL}/ImageCompression/compress`, {
+    const response = await fetch(`${BASE_URL}/ImageCompression/compress`, {
       method: 'POST',
       body: formData,
     });
@@ -86,7 +49,7 @@ export const pdfApi = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${API_BASE_URL}/PdfCompression/analyze`, {
+    const response = await fetch(`${BASE_URL}/PdfCompression/analyze`, {
       method: 'POST',
       body: formData,
     });
@@ -98,12 +61,12 @@ export const pdfApi = {
     return response.json();
   },
 
-  async compressPdf(file: File, qualityMode: string = 'Balanced'): Promise<PdfCompressionResult> {
+  async compressPdf(file: File, qualityMode: QualityMode = 'Balanced'): Promise<PdfCompressionResult> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('qualityMode', qualityMode);
 
-    const response = await fetch(`${API_BASE_URL}/PdfCompression/compress`, {
+    const response = await fetch(`${BASE_URL}/PdfCompression/compress`, {
       method: 'POST',
       body: formData,
     });
