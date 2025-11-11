@@ -8,6 +8,10 @@ LeadToolsLicenseHelper.SetLicense();
 // Add services to the container.
 builder.Services.AddControllers();
 
+// Register application services
+builder.Services.AddScoped<IImageFormatService, ImageFormatService>();
+builder.Services.AddScoped<IImageCompressionService, ImageCompressionService>();
+
 // Add Swagger services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
