@@ -6,16 +6,18 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { FileUpload, FileUploadHandlerEvent } from 'primereact/fileupload';
 import { Toast } from 'primereact/toast';
 import { Divider } from 'primereact/divider';
-import { imageApi, ImageAnalysis } from './services/api';
+import { imageApi, ImageAnalysis, CompressionResult } from './services/api';
 
 function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [compressedUrl, setCompressedUrl] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<ImageAnalysis | null>(null);
+  const [compressedResult, setCompressedResult] = useState<CompressionResult | null>(null);
+  const [originalAnalysis, setOriginalAnalysis] = useState<ImageAnalysis | null>(null);
+  const [compressedAnalysis, setCompressedAnalysis] = useState<ImageAnalysis | null>(null);
   const [quality, setQuality] = useState<number>(75);
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analyzingCompressed, setAnalyzingCompressed] = useState(false);
   const toast = useRef<Toast>(null);
   const fileUploadRef = useRef<FileUpload>(null);
 
@@ -32,8 +34,9 @@ function App() {
     if (!file) return;
 
     setSelectedFile(file);
-    setCompressedUrl(null);
-    setAnalysis(null);
+    setCompressedResult(null);
+    setOriginalAnalysis(null);
+    setCompressedAnalysis(null);
 
     // Create preview
     const reader = new FileReader();
@@ -53,11 +56,11 @@ function App() {
     setAnalyzing(true);
     try {
       const result = await imageApi.analyzeImage(targetFile);
-      setAnalysis(result);
+      setOriginalAnalysis(result);
       toast.current?.show({
         severity: 'success',
         summary: 'Analysis Complete',
-        detail: 'Image analyzed successfully',
+        detail: 'Original image analyzed successfully',
         life: 3000,
       });
     } catch (error) {
@@ -73,27 +76,44 @@ function App() {
     }
   };
 
+  const analyzeCompressedImage = async (imageData: string) => {
+    setAnalyzingCompressed(true);
+    try {
+      // Convert base64 data URL to File object
+      const response = await fetch(imageData);
+      const blob = await response.blob();
+      const file = new File([blob], 'compressed.jpg', { type: 'image/jpeg' });
+
+      const result = await imageApi.analyzeImage(file);
+      setCompressedAnalysis(result);
+    } catch (error) {
+      console.error('Error analyzing compressed image:', error);
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to analyze compressed image',
+        life: 3000,
+      });
+    } finally {
+      setAnalyzingCompressed(false);
+    }
+  };
+
   const handleCompress = async () => {
     if (!selectedFile) return;
 
     setLoading(true);
     try {
-      const { blob, filename } = await imageApi.compressImage(selectedFile, quality);
+      const result = await imageApi.compressImage(selectedFile, quality);
+      setCompressedResult(result);
 
-      // Create URL for compressed image
-      const url = URL.createObjectURL(blob);
-      setCompressedUrl(url);
-
-      // Auto-download
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
+      // Automatically analyze the compressed image
+      await analyzeCompressedImage(result.imageData);
 
       toast.current?.show({
         severity: 'success',
         summary: 'Success',
-        detail: 'Image compressed and downloaded',
+        detail: 'Image compressed successfully',
         life: 3000,
       });
     } catch (error) {
@@ -109,19 +129,21 @@ function App() {
     }
   };
 
-  const uploadHeader = (
-    <div className="header">
-      <i className="pi pi-upload"></i>
-      <h3>Upload Image</h3>
-    </div>
-  );
+  const handleDownload = () => {
+    if (!compressedResult) return;
 
-  const analysisHeader = (
-    <div className="header">
-      <i className="pi pi-info-circle"></i>
-      <h3>Image Analysis</h3>
-    </div>
-  );
+    const a = document.createElement('a');
+    a.href = compressedResult.imageData;
+    a.download = compressedResult.fileName;
+    a.click();
+
+    toast.current?.show({
+      severity: 'success',
+      summary: 'Downloaded',
+      detail: 'Compressed image downloaded successfully',
+      life: 3000,
+    });
+  };
 
   return (
     <div className="app-container">
@@ -167,12 +189,12 @@ function App() {
               </div>
 
               <Button
-                label="Compress & Download"
-                icon="pi pi-download"
+                label="Compress Image"
+                icon="pi pi-compress"
                 onClick={handleCompress}
                 disabled={loading}
                 loading={loading}
-                className="w-full p-button-lg p-button-success"
+                className="w-full p-button-lg p-button-primary"
                 style={{ width: '100%' }}
               />
             </div>
@@ -190,53 +212,46 @@ function App() {
           {analyzing ? (
             <div style={{ textAlign: 'center', padding: '3rem 0' }}>
               <ProgressSpinner style={{ width: '50px', height: '50px' }} />
-              <p style={{ marginTop: '1rem', color: '#718096' }}>Analyzing image...</p>
+              <p style={{ marginTop: '1rem', color: '#718096' }}>Analyzing original image...</p>
             </div>
-          ) : analysis ? (
+          ) : originalAnalysis ? (
             <div>
+              <h3 style={{ marginBottom: '1rem', color: '#2d3748' }}>
+                <i className="pi pi-file" style={{ marginRight: '0.5rem' }}></i>
+                Original Image
+              </h3>
               <div className="info-grid">
                 <div className="info-item">
                   <label>File Name</label>
-                  <div className="value" title={analysis.fileName}>
-                    {analysis.fileName.length > 20
-                      ? analysis.fileName.substring(0, 20) + '...'
-                      : analysis.fileName}
+                  <div className="value" title={originalAnalysis.fileName}>
+                    {originalAnalysis.fileName.length > 20
+                      ? originalAnalysis.fileName.substring(0, 20) + '...'
+                      : originalAnalysis.fileName}
                   </div>
                 </div>
                 <div className="info-item">
                   <label>File Size</label>
-                  <div className="value">{formatBytes(analysis.originalSize)}</div>
+                  <div className="value">{formatBytes(originalAnalysis.originalSize)}</div>
                 </div>
                 <div className="info-item">
                   <label>Dimensions</label>
                   <div className="value">
-                    {analysis.width} × {analysis.height}
+                    {originalAnalysis.width} × {originalAnalysis.height}
                   </div>
                 </div>
                 <div className="info-item">
                   <label>Bits Per Pixel</label>
-                  <div className="value">{analysis.bitsPerPixel}</div>
+                  <div className="value">{originalAnalysis.bitsPerPixel}</div>
                 </div>
                 <div className="info-item">
                   <label>Format</label>
-                  <div className="value">{analysis.format}</div>
+                  <div className="value">{originalAnalysis.format}</div>
                 </div>
                 <div className="info-item">
                   <label>Compression Type</label>
-                  <div className="value">{analysis.compressionType}</div>
+                  <div className="value">{originalAnalysis.compressionType}</div>
                 </div>
               </div>
-
-              {compressedUrl && (
-                <div style={{ marginTop: '2rem' }}>
-                  <Divider />
-                  <h3 style={{ marginBottom: '1rem' }}>
-                    <i className="pi pi-check-circle" style={{ color: '#10b981', marginRight: '0.5rem' }}></i>
-                    Compressed Preview
-                  </h3>
-                  <img src={compressedUrl} alt="Compressed" className="preview-image" />
-                </div>
-              )}
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '3rem 0', color: '#a0aec0' }}>
@@ -246,6 +261,146 @@ function App() {
           )}
         </Card>
       </div>
+
+      {/* Compression Results Section */}
+      {compressedResult && (
+        <div style={{ marginTop: '2rem' }}>
+          <Card>
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <i className="pi pi-check-circle" style={{ fontSize: '3rem', color: '#10b981' }}></i>
+              <h2 style={{ marginTop: '1rem', marginBottom: '0.5rem', color: '#2d3748' }}>Compression Complete</h2>
+              <p style={{ color: '#718096' }}>Review the results and download if satisfied</p>
+            </div>
+
+            {/* Compression Stats */}
+            <div style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              padding: '1.5rem',
+              borderRadius: '8px',
+              marginBottom: '2rem',
+              color: 'white'
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem', textAlign: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Original Size</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{formatBytes(compressedResult.originalSize)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Compressed Size</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{formatBytes(compressedResult.compressedSize)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Reduction</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{compressedResult.compressionRatio}%</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Quality</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{compressedResult.quality}%</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Format</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{compressedResult.format}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Side-by-side comparison */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
+              {/* Original Preview */}
+              <div>
+                <h3 style={{ marginBottom: '1rem', color: '#2d3748' }}>
+                  <i className="pi pi-file" style={{ marginRight: '0.5rem' }}></i>
+                  Original
+                </h3>
+                <img src={previewUrl!} alt="Original" className="preview-image" style={{ marginBottom: '1rem' }} />
+                {originalAnalysis && (
+                  <div style={{ fontSize: '0.875rem', color: '#718096' }}>
+                    <div>{originalAnalysis.width} × {originalAnalysis.height}</div>
+                    <div>{formatBytes(originalAnalysis.originalSize)}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Compressed Preview */}
+              <div>
+                <h3 style={{ marginBottom: '1rem', color: '#2d3748' }}>
+                  <i className="pi pi-check-circle" style={{ marginRight: '0.5rem', color: '#10b981' }}></i>
+                  Compressed
+                </h3>
+                <img src={compressedResult.imageData} alt="Compressed" className="preview-image" style={{ marginBottom: '1rem' }} />
+                {analyzingCompressed ? (
+                  <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                    <ProgressSpinner style={{ width: '30px', height: '30px' }} />
+                    <p style={{ marginTop: '0.5rem', color: '#718096', fontSize: '0.875rem' }}>Analyzing...</p>
+                  </div>
+                ) : compressedAnalysis ? (
+                  <div style={{ fontSize: '0.875rem', color: '#718096' }}>
+                    <div>{compressedAnalysis.width} × {compressedAnalysis.height}</div>
+                    <div>{formatBytes(compressedAnalysis.originalSize)}</div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {/* Detailed Comparison Table */}
+            {compressedAnalysis && (
+              <div style={{ marginBottom: '2rem' }}>
+                <h3 style={{ marginBottom: '1rem', color: '#2d3748' }}>
+                  <i className="pi pi-table" style={{ marginRight: '0.5rem' }}></i>
+                  Detailed Comparison
+                </h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                        <th style={{ padding: '0.75rem', textAlign: 'left', color: '#4a5568' }}>Property</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'left', color: '#4a5568' }}>Original</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'left', color: '#4a5568' }}>Compressed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '0.75rem', fontWeight: 600 }}>File Size</td>
+                        <td style={{ padding: '0.75rem' }}>{formatBytes(originalAnalysis.originalSize)}</td>
+                        <td style={{ padding: '0.75rem', color: '#10b981', fontWeight: 600 }}>{formatBytes(compressedAnalysis.originalSize)}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '0.75rem', fontWeight: 600 }}>Dimensions</td>
+                        <td style={{ padding: '0.75rem' }}>{originalAnalysis.width} × {originalAnalysis.height}</td>
+                        <td style={{ padding: '0.75rem' }}>{compressedAnalysis.width} × {compressedAnalysis.height}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '0.75rem', fontWeight: 600 }}>Bits Per Pixel</td>
+                        <td style={{ padding: '0.75rem' }}>{originalAnalysis.bitsPerPixel}</td>
+                        <td style={{ padding: '0.75rem' }}>{compressedAnalysis.bitsPerPixel}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '0.75rem', fontWeight: 600 }}>Format</td>
+                        <td style={{ padding: '0.75rem' }}>{originalAnalysis.format}</td>
+                        <td style={{ padding: '0.75rem' }}>{compressedAnalysis.format}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '0.75rem', fontWeight: 600 }}>Compression Type</td>
+                        <td style={{ padding: '0.75rem' }}>{originalAnalysis.compressionType}</td>
+                        <td style={{ padding: '0.75rem' }}>{compressedAnalysis.compressionType}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Download Button */}
+            <Button
+              label="Download Compressed Image"
+              icon="pi pi-download"
+              onClick={handleDownload}
+              className="w-full p-button-lg p-button-success"
+              style={{ width: '100%' }}
+            />
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

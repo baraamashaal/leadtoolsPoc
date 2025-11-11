@@ -11,8 +11,13 @@ export interface ImageAnalysis {
 }
 
 export interface CompressionResult {
-  blob: Blob;
-  filename: string;
+  fileName: string;
+  originalSize: number;
+  compressedSize: number;
+  compressionRatio: number;
+  quality: number;
+  format: string;
+  imageData: string;
 }
 
 export const imageApi = {
@@ -46,12 +51,6 @@ export const imageApi = {
       throw new Error(`Failed to compress image: ${response.statusText}`);
     }
 
-    const blob = await response.blob();
-    const contentDisposition = response.headers.get('Content-Disposition');
-    const filename = contentDisposition
-      ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
-      : `compressed_${file.name}`;
-
-    return { blob, filename };
+    return response.json();
   },
 };

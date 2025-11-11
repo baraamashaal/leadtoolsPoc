@@ -18,11 +18,11 @@ public class ImageCompressionController : ControllerBase
     /// <summary>
     /// Compresses an uploaded image using LEADTOOLS
     /// </summary>
-    /// <param name="file">The image file to compress</param>
-    /// <param name="quality">JPEG quality (1-100, default: 75)</param>
-    /// <returns>Compressed image file</returns>
+    /// <param name="file">The image file to compress (supports JPEG, PNG, BMP, GIF, TIFF, WebP)</param>
+    /// <param name="quality">Compression quality (1-100, default: 75). Higher = better quality, larger file.</param>
+    /// <returns>Compressed image data with compression statistics including format, size reduction, and base64 data</returns>
     [HttpPost("compress")]
-    public async Task<IActionResult> CompressImage(IFormFile file, [FromForm] int quality = 75)
+    public IActionResult CompressImage(IFormFile file, [FromForm] int quality = 75)
     {
         if (file == null || file.Length == 0)
         {
@@ -44,11 +44,102 @@ public class ImageCompressionController : ControllerBase
             // Load the image
             var image = codecs.Load(inputStream);
 
-            // Set compression quality for JPEG
-            codecs.Options.Jpeg.Save.QualityFactor = quality;
+            // Get the original format
+            var originalFormat = image.OriginalFormat;
+
+            // Determine output format and configure compression
+            RasterImageFormat outputFormat;
+            string mimeType;
+            string fileExtension;
+            int bitsPerPixel = image.BitsPerPixel;
+
+            // Map original format to appropriate compressed format
+            switch (originalFormat)
+            {
+                case RasterImageFormat.Png:
+                    outputFormat = RasterImageFormat.Png;
+                    mimeType = "image/png";
+                    fileExtension = ".png";
+                    // PNG quality factor: 0-9 (0=no compression, 9=max compression)
+                    // Convert our 1-100 scale to PNG's 0-9 scale
+                    codecs.Options.Png.Save.QualityFactor = 9 - ((quality - 1) * 9 / 99);
+                    break;
+
+                case RasterImageFormat.Jpeg:
+                case RasterImageFormat.Jpeg411:
+                case RasterImageFormat.Jpeg422:
+                    outputFormat = RasterImageFormat.Jpeg;
+                    mimeType = "image/jpeg";
+                    fileExtension = ".jpg";
+                    // Convert quality from standard scale (1-100) to LEADTOOLS scale (255-2)
+                    var leadtoolsQuality = (int)(257 - (quality * 2.53));
+                    codecs.Options.Jpeg.Save.QualityFactor = Math.Max(2, Math.Min(255, leadtoolsQuality));
+                    // JPEG doesn't support alpha channel
+                    if (bitsPerPixel <= 8)
+                        bitsPerPixel = 8; // Grayscale
+                    else if (bitsPerPixel == 12)
+                        bitsPerPixel = 12; // Medical imaging
+                    else
+                        bitsPerPixel = 24; // Standard RGB
+                    break;
+
+                case RasterImageFormat.Gif:
+                    outputFormat = RasterImageFormat.Gif;
+                    mimeType = "image/gif";
+                    fileExtension = ".gif";
+                    bitsPerPixel = 8; // GIF is always 8-bit
+                    break;
+
+                case RasterImageFormat.Bmp:
+                case RasterImageFormat.BmpRle:
+                    outputFormat = RasterImageFormat.Bmp;
+                    mimeType = "image/bmp";
+                    fileExtension = ".bmp";
+                    // BMP doesn't have quality settings in LEADTOOLS
+                    break;
+
+                case RasterImageFormat.Tif:
+                case RasterImageFormat.TifJpeg:
+                case RasterImageFormat.TifJpeg411:
+                case RasterImageFormat.TifJpeg422:
+                    outputFormat = RasterImageFormat.TifJpeg;
+                    mimeType = "image/tiff";
+                    fileExtension = ".tif";
+                    // Use JPEG compression for TIFF
+                    var tifQuality = (int)(257 - (quality * 2.53));
+                    codecs.Options.Jpeg.Save.QualityFactor = Math.Max(2, Math.Min(255, tifQuality));
+                    break;
+
+                case RasterImageFormat.Webp:
+                    outputFormat = RasterImageFormat.Webp;
+                    mimeType = "image/webp";
+                    fileExtension = ".webp";
+                    // WebP quality: 1-100 (same as our scale)
+                    codecs.Options.Webp.Save.QualityFactor = quality;
+                    break;
+
+                // For all other formats, default to JPEG
+                default:
+                    outputFormat = RasterImageFormat.Jpeg;
+                    mimeType = "image/jpeg";
+                    fileExtension = ".jpg";
+                    var defaultQuality = (int)(257 - (quality * 2.53));
+                    codecs.Options.Jpeg.Save.QualityFactor = Math.Max(2, Math.Min(255, defaultQuality));
+                    if (bitsPerPixel <= 8)
+                        bitsPerPixel = 8;
+                    else if (bitsPerPixel == 12)
+                        bitsPerPixel = 12;
+                    else
+                        bitsPerPixel = 24;
+                    break;
+            }
+
+            _logger.LogInformation(
+                "Compressing image: Format {OriginalFormat} -> {OutputFormat}, Quality {InputQuality}%, BPP: {OriginalBpp} -> {OutputBpp}",
+                originalFormat, outputFormat, quality, image.BitsPerPixel, bitsPerPixel);
 
             // Save compressed image to output stream
-            codecs.Save(image, outputStream, RasterImageFormat.Jpeg, 24);
+            codecs.Save(image, outputStream, outputFormat, bitsPerPixel);
 
             // Calculate compression ratio
             var originalSize = file.Length;
@@ -59,9 +150,25 @@ public class ImageCompressionController : ControllerBase
                 "Compressed image: {FileName}, Original: {OriginalSize} bytes, Compressed: {CompressedSize} bytes, Ratio: {Ratio:F2}%",
                 file.FileName, originalSize, compressedSize, compressionRatio);
 
-            // Return compressed image
+            // Return compressed image data with statistics
             outputStream.Position = 0;
-            return File(outputStream.ToArray(), "image/jpeg", $"compressed_{file.FileName}");
+            var compressedBytes = outputStream.ToArray();
+            var base64Image = Convert.ToBase64String(compressedBytes);
+
+            // Generate output filename with correct extension
+            var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
+            var outputFileName = $"compressed_{originalFileName}{fileExtension}";
+
+            return Ok(new
+            {
+                fileName = outputFileName,
+                originalSize = originalSize,
+                compressedSize = compressedSize,
+                compressionRatio = Math.Round(compressionRatio, 2),
+                quality = quality,
+                format = outputFormat.ToString(),
+                imageData = $"data:{mimeType};base64,{base64Image}"
+            });
         }
         catch (Exception ex)
         {
@@ -74,7 +181,7 @@ public class ImageCompressionController : ControllerBase
     /// Gets compression information without saving
     /// </summary>
     [HttpPost("analyze")]
-    public async Task<IActionResult> AnalyzeImage(IFormFile file)
+    public IActionResult AnalyzeImage(IFormFile file)
     {
         if (file == null || file.Length == 0)
         {
