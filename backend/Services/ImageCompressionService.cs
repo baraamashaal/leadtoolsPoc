@@ -23,7 +23,7 @@ public class ImageCompressionService : IImageCompressionService
     /// <summary>
     /// Compresses an uploaded image file using LEADTOOLS codec
     /// </summary>
-    public async Task<CompressionResult> CompressImageAsync(IFormFile file, int quality)
+    public Task<CompressionResult> CompressImageAsync(IFormFile file, int quality)
     {
         using var codecs = new RasterCodecs();
         using var inputStream = file.OpenReadStream();
@@ -61,7 +61,7 @@ public class ImageCompressionService : IImageCompressionService
         var base64Image = Convert.ToBase64String(compressedBytes);
         var outputFileName = GenerateOutputFileName(file.FileName, formatInfo.FileExtension);
 
-        return new CompressionResult
+        var result = new CompressionResult
         {
             FileName = outputFileName,
             OriginalSize = originalSize,
@@ -71,12 +71,14 @@ public class ImageCompressionService : IImageCompressionService
             Format = formatInfo.OutputFormat.ToString(),
             ImageData = $"data:{formatInfo.MimeType};base64,{base64Image}"
         };
+
+        return Task.FromResult(result);
     }
 
     /// <summary>
     /// Analyzes an image file without performing compression
     /// </summary>
-    public async Task<ImageAnalysisResult> AnalyzeImageAsync(IFormFile file)
+    public Task<ImageAnalysisResult> AnalyzeImageAsync(IFormFile file)
     {
         using var codecs = new RasterCodecs();
         using var inputStream = file.OpenReadStream();
@@ -84,7 +86,7 @@ public class ImageCompressionService : IImageCompressionService
         // Load image info without loading full image data
         var imageInfo = codecs.GetInformation(inputStream, true);
 
-        return new ImageAnalysisResult
+        var result = new ImageAnalysisResult
         {
             FileName = file.FileName,
             OriginalSize = file.Length,
@@ -94,6 +96,8 @@ public class ImageCompressionService : IImageCompressionService
             Format = imageInfo.Format.ToString(),
             CompressionType = imageInfo.Compression.ToString()
         };
+
+        return Task.FromResult(result);
     }
 
     /// <summary>

@@ -6,9 +6,12 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { FileUpload, FileUploadHandlerEvent } from 'primereact/fileupload';
 import { Toast } from 'primereact/toast';
 import { Divider } from 'primereact/divider';
-import { imageApi, ImageAnalysis, CompressionResult } from './services/api';
+import { TabView, TabPanel } from 'primereact/tabview';
+import { Dropdown } from 'primereact/dropdown';
+import { imageApi, pdfApi, ImageAnalysis, CompressionResult, PdfAnalysis, PdfCompressionResult } from './services/api';
 
 function App() {
+  // Image compression state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [compressedResult, setCompressedResult] = useState<CompressionResult | null>(null);
@@ -18,8 +21,24 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzingCompressed, setAnalyzingCompressed] = useState(false);
+
+  // PDF compression state
+  const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
+  const [pdfAnalysis, setPdfAnalysis] = useState<PdfAnalysis | null>(null);
+  const [pdfCompressedResult, setPdfCompressedResult] = useState<PdfCompressionResult | null>(null);
+  const [pdfQualityMode, setPdfQualityMode] = useState<string>('Balanced');
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfAnalyzing, setPdfAnalyzing] = useState(false);
+
   const toast = useRef<Toast>(null);
   const fileUploadRef = useRef<FileUpload>(null);
+  const pdfUploadRef = useRef<FileUpload>(null);
+
+  const qualityModes = [
+    { label: 'Best Quality', value: 'BestQuality' },
+    { label: 'Balanced', value: 'Balanced' },
+    { label: 'Best Size', value: 'BestSize' },
+  ];
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -29,6 +48,7 @@ function App() {
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   };
 
+  // Image handlers
   const handleFileSelect = async (event: FileUploadHandlerEvent) => {
     const file = event.files[0];
     if (!file) return;
@@ -38,14 +58,12 @@ function App() {
     setOriginalAnalysis(null);
     setCompressedAnalysis(null);
 
-    // Create preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreviewUrl(reader.result as string);
     };
     reader.readAsDataURL(file);
 
-    // Auto-analyze
     await handleAnalyze(file);
   };
 
@@ -79,7 +97,6 @@ function App() {
   const analyzeCompressedImage = async (imageData: string) => {
     setAnalyzingCompressed(true);
     try {
-      // Convert base64 data URL to File object
       const response = await fetch(imageData);
       const blob = await response.blob();
       const file = new File([blob], 'compressed.jpg', { type: 'image/jpeg' });
@@ -88,12 +105,6 @@ function App() {
       setCompressedAnalysis(result);
     } catch (error) {
       console.error('Error analyzing compressed image:', error);
-      toast.current?.show({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Failed to analyze compressed image',
-        life: 3000,
-      });
     } finally {
       setAnalyzingCompressed(false);
     }
@@ -106,8 +117,6 @@ function App() {
     try {
       const result = await imageApi.compressImage(selectedFile, quality);
       setCompressedResult(result);
-
-      // Automatically analyze the compressed image
       await analyzeCompressedImage(result.imageData);
 
       toast.current?.show({
@@ -145,262 +154,402 @@ function App() {
     });
   };
 
+  // PDF handlers
+  const handlePdfSelect = async (event: FileUploadHandlerEvent) => {
+    const file = event.files[0];
+    if (!file) return;
+
+    setSelectedPdf(file);
+    setPdfCompressedResult(null);
+    setPdfAnalysis(null);
+
+    await handlePdfAnalyze(file);
+  };
+
+  const handlePdfAnalyze = async (file?: File) => {
+    const targetFile = file || selectedPdf;
+    if (!targetFile) return;
+
+    setPdfAnalyzing(true);
+    try {
+      const result = await pdfApi.analyzePdf(targetFile);
+      setPdfAnalysis(result);
+      toast.current?.show({
+        severity: 'success',
+        summary: 'Analysis Complete',
+        detail: 'PDF analyzed successfully',
+        life: 3000,
+      });
+    } catch (error) {
+      console.error('Error analyzing PDF:', error);
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to analyze PDF',
+        life: 3000,
+      });
+    } finally {
+      setPdfAnalyzing(false);
+    }
+  };
+
+  const handlePdfCompress = async () => {
+    if (!selectedPdf) return;
+
+    setPdfLoading(true);
+    try {
+      const result = await pdfApi.compressPdf(selectedPdf, pdfQualityMode);
+      setPdfCompressedResult(result);
+
+      toast.current?.show({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'PDF compressed successfully with MRC technology',
+        life: 3000,
+      });
+    } catch (error) {
+      console.error('Error compressing PDF:', error);
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to compress PDF',
+        life: 3000,
+      });
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handlePdfDownload = () => {
+    if (!pdfCompressedResult) return;
+
+    const a = document.createElement('a');
+    a.href = pdfCompressedResult.pdfData;
+    a.download = pdfCompressedResult.fileName;
+    a.click();
+
+    toast.current?.show({
+      severity: 'success',
+      summary: 'Downloaded',
+      detail: 'Compressed PDF downloaded successfully',
+      life: 3000,
+    });
+  };
+
   return (
     <div className="app-container">
       <Toast ref={toast} />
 
       <div className="header">
-        <h1>🖼️ LEADTOOLS Image Compressor</h1>
-        <p>Professional-grade image compression powered by LEADTOOLS SDK</p>
+        <h1>🚀 LEADTOOLS Compression Suite</h1>
+        <p>Professional-grade compression powered by LEADTOOLS SDK with advanced MRC technology</p>
       </div>
 
-      <div className="main-grid">
-        {/* Upload Section */}
-        <Card>
-          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-            <i className="pi pi-cloud-upload" style={{ fontSize: '3rem', color: '#667eea' }}></i>
-            <h2 style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>Upload Image</h2>
-            <p style={{ color: '#718096' }}>Select an image to compress and analyze</p>
-          </div>
-
-          <FileUpload
-            ref={fileUploadRef}
-            name="file"
-            accept="image/*"
-            maxFileSize={10000000}
-            customUpload
-            uploadHandler={handleFileSelect}
-            auto
-            chooseLabel="Select Image"
-            className="mb-3"
-          />
-
-          {previewUrl && (
-            <div style={{ marginTop: '1.5rem' }}>
-              <img src={previewUrl} alt="Preview" className="preview-image" />
-
-              <Divider />
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>
-                  Compression Quality: {quality}%
-                </label>
-                <Slider value={quality} onChange={(e) => setQuality(e.value as number)} min={1} max={100} />
+      <TabView>
+        {/* IMAGE COMPRESSION TAB */}
+        <TabPanel header="Image Compression" leftIcon="pi pi-image">
+          <div className="main-grid">
+            <Card>
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <i className="pi pi-cloud-upload" style={{ fontSize: '3rem', color: '#667eea' }}></i>
+                <h2 style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>Upload Image</h2>
+                <p style={{ color: '#718096' }}>Select an image to compress and analyze</p>
               </div>
 
-              <Button
-                label="Compress Image"
-                icon="pi pi-compress"
-                onClick={handleCompress}
-                disabled={loading}
-                loading={loading}
-                className="w-full p-button-lg p-button-primary"
-                style={{ width: '100%' }}
+              <FileUpload
+                ref={fileUploadRef}
+                name="file"
+                accept="image/*"
+                maxFileSize={10000000}
+                customUpload
+                uploadHandler={handleFileSelect}
+                auto
+                chooseLabel="Select Image"
+                className="mb-3"
               />
-            </div>
-          )}
-        </Card>
 
-        {/* Analysis Section */}
-        <Card>
-          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-            <i className="pi pi-chart-bar" style={{ fontSize: '3rem', color: '#667eea' }}></i>
-            <h2 style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>Image Analysis</h2>
-            <p style={{ color: '#718096' }}>Detailed information about your image</p>
+              {previewUrl && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <img src={previewUrl} alt="Preview" className="preview-image" />
+
+                  <Divider />
+
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>
+                      Compression Quality: {quality}%
+                    </label>
+                    <Slider value={quality} onChange={(e) => setQuality(e.value as number)} min={1} max={100} />
+                  </div>
+
+                  <Button
+                    label="Compress Image"
+                    icon="pi pi-compress"
+                    onClick={handleCompress}
+                    disabled={loading}
+                    loading={loading}
+                    className="w-full p-button-lg p-button-primary"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              )}
+            </Card>
+
+            <Card>
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <i className="pi pi-chart-bar" style={{ fontSize: '3rem', color: '#667eea' }}></i>
+                <h2 style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>Image Analysis</h2>
+                <p style={{ color: '#718096' }}>Detailed information about your image</p>
+              </div>
+
+              {analyzing ? (
+                <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                  <ProgressSpinner style={{ width: '50px', height: '50px' }} />
+                  <p style={{ marginTop: '1rem', color: '#718096' }}>Analyzing...</p>
+                </div>
+              ) : originalAnalysis ? (
+                <div className="info-grid">
+                  <div className="info-item">
+                    <label>File Size</label>
+                    <div className="value">{formatBytes(originalAnalysis.originalSize)}</div>
+                  </div>
+                  <div className="info-item">
+                    <label>Dimensions</label>
+                    <div className="value">{originalAnalysis.width} × {originalAnalysis.height}</div>
+                  </div>
+                  <div className="info-item">
+                    <label>Format</label>
+                    <div className="value">{originalAnalysis.format}</div>
+                  </div>
+                  <div className="info-item">
+                    <label>Bits Per Pixel</label>
+                    <div className="value">{originalAnalysis.bitsPerPixel}</div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '3rem 0', color: '#a0aec0' }}>
+                  <i className="pi pi-image" style={{ fontSize: '3rem', opacity: 0.5 }}></i>
+                  <p style={{ marginTop: '1rem' }}>Upload an image to see analysis</p>
+                </div>
+              )}
+            </Card>
           </div>
 
-          {analyzing ? (
-            <div style={{ textAlign: 'center', padding: '3rem 0' }}>
-              <ProgressSpinner style={{ width: '50px', height: '50px' }} />
-              <p style={{ marginTop: '1rem', color: '#718096' }}>Analyzing original image...</p>
-            </div>
-          ) : originalAnalysis ? (
-            <div>
-              <h3 style={{ marginBottom: '1rem', color: '#2d3748' }}>
-                <i className="pi pi-file" style={{ marginRight: '0.5rem' }}></i>
-                Original Image
-              </h3>
-              <div className="info-grid">
-                <div className="info-item">
-                  <label>File Name</label>
-                  <div className="value" title={originalAnalysis.fileName}>
-                    {originalAnalysis.fileName.length > 20
-                      ? originalAnalysis.fileName.substring(0, 20) + '...'
-                      : originalAnalysis.fileName}
+          {compressedResult && (
+            <div style={{ marginTop: '2rem' }}>
+              <Card>
+                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                  <i className="pi pi-check-circle" style={{ fontSize: '3rem', color: '#10b981' }}></i>
+                  <h2 style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>Compression Complete</h2>
+                </div>
+
+                <div style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  padding: '1.5rem',
+                  borderRadius: '8px',
+                  marginBottom: '2rem',
+                  color: 'white'
+                }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem', textAlign: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Reduction</div>
+                      <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{compressedResult.compressionRatio}%</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Original</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{formatBytes(compressedResult.originalSize)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Compressed</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{formatBytes(compressedResult.compressedSize)}</div>
+                    </div>
                   </div>
                 </div>
-                <div className="info-item">
-                  <label>File Size</label>
-                  <div className="value">{formatBytes(originalAnalysis.originalSize)}</div>
-                </div>
-                <div className="info-item">
-                  <label>Dimensions</label>
-                  <div className="value">
-                    {originalAnalysis.width} × {originalAnalysis.height}
-                  </div>
-                </div>
-                <div className="info-item">
-                  <label>Bits Per Pixel</label>
-                  <div className="value">{originalAnalysis.bitsPerPixel}</div>
-                </div>
-                <div className="info-item">
-                  <label>Format</label>
-                  <div className="value">{originalAnalysis.format}</div>
-                </div>
-                <div className="info-item">
-                  <label>Compression Type</label>
-                  <div className="value">{originalAnalysis.compressionType}</div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '3rem 0', color: '#a0aec0' }}>
-              <i className="pi pi-image" style={{ fontSize: '3rem', opacity: 0.5 }}></i>
-              <p style={{ marginTop: '1rem' }}>Upload an image to see analysis</p>
+
+                <Button
+                  label="Download Compressed Image"
+                  icon="pi pi-download"
+                  onClick={handleDownload}
+                  className="w-full p-button-success"
+                  style={{ width: '100%' }}
+                />
+              </Card>
             </div>
           )}
-        </Card>
-      </div>
+        </TabPanel>
 
-      {/* Compression Results Section */}
-      {compressedResult && (
-        <div style={{ marginTop: '2rem' }}>
-          <Card>
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <i className="pi pi-check-circle" style={{ fontSize: '3rem', color: '#10b981' }}></i>
-              <h2 style={{ marginTop: '1rem', marginBottom: '0.5rem', color: '#2d3748' }}>Compression Complete</h2>
-              <p style={{ color: '#718096' }}>Review the results and download if satisfied</p>
-            </div>
-
-            {/* Compression Stats */}
-            <div style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              padding: '1.5rem',
-              borderRadius: '8px',
-              marginBottom: '2rem',
-              color: 'white'
-            }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem', textAlign: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Original Size</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{formatBytes(compressedResult.originalSize)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Compressed Size</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{formatBytes(compressedResult.compressedSize)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Reduction</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{compressedResult.compressionRatio}%</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Quality</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{compressedResult.quality}%</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Format</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{compressedResult.format}</div>
-                </div>
+        {/* PDF COMPRESSION TAB */}
+        <TabPanel header="PDF Compression (MRC)" leftIcon="pi pi-file-pdf">
+          <div className="main-grid">
+            <Card>
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <i className="pi pi-cloud-upload" style={{ fontSize: '3rem', color: '#dc2626' }}></i>
+                <h2 style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>Upload PDF</h2>
+                <p style={{ color: '#718096' }}>Select a PDF to compress with MRC technology</p>
               </div>
-            </div>
 
-            {/* Side-by-side comparison */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-              {/* Original Preview */}
-              <div>
-                <h3 style={{ marginBottom: '1rem', color: '#2d3748' }}>
-                  <i className="pi pi-file" style={{ marginRight: '0.5rem' }}></i>
-                  Original
-                </h3>
-                <img src={previewUrl!} alt="Original" className="preview-image" style={{ marginBottom: '1rem' }} />
-                {originalAnalysis && (
-                  <div style={{ fontSize: '0.875rem', color: '#718096' }}>
-                    <div>{originalAnalysis.width} × {originalAnalysis.height}</div>
-                    <div>{formatBytes(originalAnalysis.originalSize)}</div>
+              <FileUpload
+                ref={pdfUploadRef}
+                name="file"
+                accept=".pdf"
+                maxFileSize={50000000}
+                customUpload
+                uploadHandler={handlePdfSelect}
+                auto
+                chooseLabel="Select PDF"
+                className="mb-3"
+              />
+
+              {selectedPdf && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <div style={{
+                    padding: '2rem',
+                    background: '#fef2f2',
+                    borderRadius: '8px',
+                    textAlign: 'center',
+                    marginBottom: '1.5rem'
+                  }}>
+                    <i className="pi pi-file-pdf" style={{ fontSize: '4rem', color: '#dc2626' }}></i>
+                    <p style={{ marginTop: '1rem', fontWeight: 600, color: '#1f2937' }}>{selectedPdf.name}</p>
                   </div>
-                )}
-              </div>
 
-              {/* Compressed Preview */}
-              <div>
-                <h3 style={{ marginBottom: '1rem', color: '#2d3748' }}>
-                  <i className="pi pi-check-circle" style={{ marginRight: '0.5rem', color: '#10b981' }}></i>
-                  Compressed
-                </h3>
-                <img src={compressedResult.imageData} alt="Compressed" className="preview-image" style={{ marginBottom: '1rem' }} />
-                {analyzingCompressed ? (
-                  <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-                    <ProgressSpinner style={{ width: '30px', height: '30px' }} />
-                    <p style={{ marginTop: '0.5rem', color: '#718096', fontSize: '0.875rem' }}>Analyzing...</p>
-                  </div>
-                ) : compressedAnalysis ? (
-                  <div style={{ fontSize: '0.875rem', color: '#718096' }}>
-                    <div>{compressedAnalysis.width} × {compressedAnalysis.height}</div>
-                    <div>{formatBytes(compressedAnalysis.originalSize)}</div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
+                  <Divider />
 
-            {/* Detailed Comparison Table */}
-            {compressedAnalysis && (
-              <div style={{ marginBottom: '2rem' }}>
-                <h3 style={{ marginBottom: '1rem', color: '#2d3748' }}>
-                  <i className="pi pi-table" style={{ marginRight: '0.5rem' }}></i>
-                  Detailed Comparison
-                </h3>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', color: '#4a5568' }}>Property</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', color: '#4a5568' }}>Original</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', color: '#4a5568' }}>Compressed</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '0.75rem', fontWeight: 600 }}>File Size</td>
-                        <td style={{ padding: '0.75rem' }}>{formatBytes(originalAnalysis.originalSize)}</td>
-                        <td style={{ padding: '0.75rem', color: '#10b981', fontWeight: 600 }}>{formatBytes(compressedAnalysis.originalSize)}</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '0.75rem', fontWeight: 600 }}>Dimensions</td>
-                        <td style={{ padding: '0.75rem' }}>{originalAnalysis.width} × {originalAnalysis.height}</td>
-                        <td style={{ padding: '0.75rem' }}>{compressedAnalysis.width} × {compressedAnalysis.height}</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '0.75rem', fontWeight: 600 }}>Bits Per Pixel</td>
-                        <td style={{ padding: '0.75rem' }}>{originalAnalysis.bitsPerPixel}</td>
-                        <td style={{ padding: '0.75rem' }}>{compressedAnalysis.bitsPerPixel}</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '0.75rem', fontWeight: 600 }}>Format</td>
-                        <td style={{ padding: '0.75rem' }}>{originalAnalysis.format}</td>
-                        <td style={{ padding: '0.75rem' }}>{compressedAnalysis.format}</td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '0.75rem', fontWeight: 600 }}>Compression Type</td>
-                        <td style={{ padding: '0.75rem' }}>{originalAnalysis.compressionType}</td>
-                        <td style={{ padding: '0.75rem' }}>{compressedAnalysis.compressionType}</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>
+                      Quality Mode
+                    </label>
+                    <Dropdown
+                      value={pdfQualityMode}
+                      options={qualityModes}
+                      onChange={(e) => setPdfQualityMode(e.value)}
+                      style={{ width: '100%' }}
+                    />
+                    <small style={{ color: '#718096', display: 'block', marginTop: '0.5rem' }}>
+                      Uses advanced MRC (Mixed Raster Content) segmentation
+                    </small>
+                  </div>
+
+                  <Button
+                    label="Compress PDF with MRC"
+                    icon="pi pi-compress"
+                    onClick={handlePdfCompress}
+                    disabled={pdfLoading}
+                    loading={pdfLoading}
+                    className="w-full p-button-lg p-button-danger"
+                    style={{ width: '100%' }}
+                  />
                 </div>
-              </div>
-            )}
+              )}
+            </Card>
 
-            {/* Download Button */}
-            <Button
-              label="Download Compressed Image"
-              icon="pi pi-download"
-              onClick={handleDownload}
-              className="w-full p-button-lg p-button-success"
-              style={{ width: '100%' }}
-            />
-          </Card>
-        </div>
-      )}
+            <Card>
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <i className="pi pi-info-circle" style={{ fontSize: '3rem', color: '#dc2626' }}></i>
+                <h2 style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>PDF Analysis</h2>
+                <p style={{ color: '#718096' }}>Detailed information about your PDF</p>
+              </div>
+
+              {pdfAnalyzing ? (
+                <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                  <ProgressSpinner style={{ width: '50px', height: '50px' }} />
+                  <p style={{ marginTop: '1rem', color: '#718096' }}>Analyzing PDF...</p>
+                </div>
+              ) : pdfAnalysis ? (
+                <div className="info-grid">
+                  <div className="info-item">
+                    <label>File Size</label>
+                    <div className="value">{formatBytes(pdfAnalysis.fileSize)}</div>
+                  </div>
+                  <div className="info-item">
+                    <label>Pages</label>
+                    <div className="value">{pdfAnalysis.pageCount}</div>
+                  </div>
+                  <div className="info-item">
+                    <label>Version</label>
+                    <div className="value">{pdfAnalysis.version}</div>
+                  </div>
+                  <div className="info-item">
+                    <label>Linearized</label>
+                    <div className="value">{pdfAnalysis.isLinearized ? 'Yes' : 'No'}</div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '3rem 0', color: '#a0aec0' }}>
+                  <i className="pi pi-file-pdf" style={{ fontSize: '3rem', opacity: 0.5 }}></i>
+                  <p style={{ marginTop: '1rem' }}>Upload a PDF to see analysis</p>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {pdfCompressedResult && (
+            <div style={{ marginTop: '2rem' }}>
+              <Card>
+                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                  <i className="pi pi-check-circle" style={{ fontSize: '3rem', color: '#10b981' }}></i>
+                  <h2 style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>PDF Compression Complete</h2>
+                  <p style={{ color: '#718096' }}>
+                    <i className="pi pi-sparkles" style={{ marginRight: '0.5rem' }}></i>
+                    Compressed with MRC Technology
+                  </p>
+                </div>
+
+                <div style={{
+                  background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                  padding: '1.5rem',
+                  borderRadius: '8px',
+                  marginBottom: '2rem',
+                  color: 'white'
+                }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem', textAlign: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Reduction</div>
+                      <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{pdfCompressedResult.compressionRatio}%</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Original</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{formatBytes(pdfCompressedResult.originalSize)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Compressed</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{formatBytes(pdfCompressedResult.compressedSize)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Pages</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{pdfCompressedResult.pageCount}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  background: '#ecfdf5',
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  marginBottom: '1.5rem',
+                  border: '1px solid #10b981'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#065f46' }}>
+                    <i className="pi pi-info-circle"></i>
+                    <strong>MRC Segmentation Applied</strong>
+                  </div>
+                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.875rem', color: '#047857' }}>
+                    This PDF was compressed using advanced Mixed Raster Content technology,
+                    intelligently segmenting text, images, and graphics for optimal compression.
+                  </p>
+                </div>
+
+                <Button
+                  label="Download Compressed PDF"
+                  icon="pi pi-download"
+                  onClick={handlePdfDownload}
+                  className="w-full p-button-success"
+                  style={{ width: '100%' }}
+                />
+              </Card>
+            </div>
+          )}
+        </TabPanel>
+      </TabView>
     </div>
   );
 }
