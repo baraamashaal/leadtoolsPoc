@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { pdfApi } from '../services/api';
-import { PdfAnalysis, PdfCompressionResult, QualityMode } from '../types';
+import type { PdfAnalysis, PdfCompressionResult, QualityMode } from '../types';
 
 export const usePdfCompression = () => {
   const [selectedPdf, setSelectedPdf] = useState<File | null>(null);

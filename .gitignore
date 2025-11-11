@@ -3,6 +3,8 @@ backend/bin/
 backend/obj/
 backend/packages/
 backend/_ReSharper.Caches/
+backend/publish/
+backend/*.exe
 *.user
 *.suo
 
@@ -32,3 +34,21 @@ riderModule.iml
 # OS
 .DS_Store
 Thumbs.db
+
+# Deployment
+*.zip
+leadtools-deployment/
+deploy-temp/
+
+# LEADTOOLS temporary files
+*.tmp
+temp_*
+
+# Production configuration (contains sensitive data)
+appsettings.Production.json
+
+# Documentation (generated/temporary)
+DEPLOYMENT_GUIDE.md
+DEPLOY_CHECKLIST.md
+YOUR_DEPLOYMENT_STEPS.md
+FINAL_DEPLOYMENT_GUIDE.md

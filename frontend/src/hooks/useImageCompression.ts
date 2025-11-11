@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { imageApi } from '../services/api';
-import { CompressionResult, ImageAnalysis } from '../types';
+import type { CompressionResult, ImageAnalysis } from '../types';
 
 export const useImageCompression = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

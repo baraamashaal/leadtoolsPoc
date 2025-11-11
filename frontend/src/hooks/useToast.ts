@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { Toast } from 'primereact/toast';
-import { ToastMessage } from '../types';
+import type { ToastMessage } from '../types';
 import { TOAST_DURATION } from '../constants/config';
 
 export const useToast = () => {

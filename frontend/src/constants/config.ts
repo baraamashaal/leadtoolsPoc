@@ -2,8 +2,13 @@
  * Application configuration constants
  */
 
+// Determine if we're in production based on the environment
+const isProduction = import.meta.env.PROD;
+
 export const API_CONFIG = {
-  BASE_URL: '/api',
+  BASE_URL: isProduction
+    ? '/api'  // In production, API is served from same domain
+    : '/api',  // In development, Vite proxy handles this
   TIMEOUT: 60000, // 60 seconds
 } as const;
 

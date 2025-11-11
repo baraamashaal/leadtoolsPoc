@@ -8,7 +8,7 @@ import { FileUpload, type FileUploadHandlerEvent } from 'primereact/fileupload';
 import { useImageCompression } from '../../hooks/useImageCompression';
 import { FileAnalysisCard } from '../shared/FileAnalysisCard';
 import { CompressionStats } from '../shared/CompressionStats';
-import { formatBytes, truncateFileName } from '../../utils/formatters';
+import { formatBytes } from '../../utils/formatters';
 import { fileToDataUrl, downloadFile } from '../../utils/fileHelpers';
 import { FILE_UPLOAD_CONFIG } from '../../constants/config';
 
@@ -22,13 +22,11 @@ export const ImageCompressionTab: FC<ImageCompressionTabProps> = ({ onSuccess, o
   const [quality, setQuality] = useState(75);
 
   const {
-    selectedFile,
     setSelectedFile,
     previewUrl,
     setPreviewUrl,
     compressedResult,
     originalAnalysis,
-    compressedAnalysis,
     loading,
     analyzing,
     analyzeImage,

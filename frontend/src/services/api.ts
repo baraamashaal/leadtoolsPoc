@@ -1,5 +1,5 @@
 import { API_CONFIG } from '../constants/config';
-import {
+import type {
   ImageAnalysis,
   CompressionResult,
   PdfAnalysis,
